@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Audit Logs - Digital Forensics System</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(30, 41, 59, 0.90)),
+                        url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80') center/cover no-repeat fixed;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+            padding: 2rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            color: #1e293b;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .nav-tabs .nav-link {
+            color: #475569;
+            font-weight: 600;
+            border: none;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .nav-tabs .nav-link:hover {
+            border-bottom-color: #cbd5e1;
+            color: #1e3a8a;
+        }
+        .nav-tabs .nav-link.active {
+            color: #1e3a8a;
+            background: transparent;
+            border-bottom-color: #3b82f6;
+        }
+        .table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .table thead {
+            background-color: #f8fafc;
+        }
+        .table thead th {
+            border-bottom: 2px solid #e2e8f0;
+            font-weight: 600;
+            color: #475569;
+            padding: 0.875rem 1rem;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .table tbody td {
+            padding: 0.875rem 1rem;
+            vertical-align: middle;
+            color: #334155;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .table tbody tr {
+            transition: background-color 0.2s ease;
+        }
+        .table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+        .badge {
+            padding: 0.35rem 0.75rem;
+            font-weight: 500;
+            border-radius: 4px;
+            font-size: 0.8125rem;
+        }
+        .badge-success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .badge-danger {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .badge-info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .badge-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .badge-secondary {
+            background-color: #f1f5f9;
+            color: #475569;
+        }
+        .btn {
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-outline-secondary {
+            border: 2px solid #64748b;
+            color: #64748b;
+        }
+        .btn-outline-secondary:hover {
+            background: #64748b;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .btn-outline-danger {
+            border: 2px solid #ef4444;
+            color: #ef4444;
+        }
+        .btn-outline-danger:hover {
+            background: #ef4444;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .log-count {
+            background: #e0e7ff;
+            color: #1e3a8a;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="main-container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">Audit Logs</h1>
+            <div>
+                <a class="btn btn-outline-secondary" href="{{ url_for('admin_dashboard') }}">← Back to Dashboard</a>
+                <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+
+        <p class="text-muted mb-4">
+            <strong>Database:</strong> SQLite (app.db) | <strong>Table:</strong> audit_logs | 
+            All actions are logged with timestamp, user, and details for forensic analysis.
+        </p>
+
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-4" id="logTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">
+                    All Logs <span class="log-count">{{ all_logs|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="user-tab" data-bs-toggle="tab" data-bs-target="#user" type="button" role="tab">
+                    User Audit <span class="log-count">{{ user_logs|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="evidence-tab" data-bs-toggle="tab" data-bs-target="#evidence" type="button" role="tab">
+                    Evidence Audit <span class="log-count">{{ evidence_logs|length }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="logTabsContent">
+            <!-- All Logs Tab -->
+            <div class="tab-pane fade show active" id="all" role="tabpanel">
+                {% if all_logs %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Timestamp (UTC)</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in all_logs %}
+                            <tr>
+                                <td><small>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                <td>
+                                    {% if log.user %}
+                                        <strong>{{ log.user.username }}</strong>
+                                        <br><small class="text-muted">{{ log.user.role|capitalize }}</small>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.action == 'login_success' %}
+                                        <span class="badge badge-success">Login Success</span>
+                                    {% elif log.action == 'login_failure' %}
+                                        <span class="badge badge-danger">Login Failure</span>
+                                    {% elif log.action == 'logout' %}
+                                        <span class="badge badge-secondary">Logout</span>
+                                    {% elif log.action in ['user_created', 'initial_admin_created'] %}
+                                        <span class="badge badge-info">User Created</span>
+                                    {% elif log.action == 'evidence_upload' %}
+                                        <span class="badge badge-success">Evidence Upload</span>
+                                    {% elif log.action == 'evidence_access' %}
+                                        <span class="badge badge-warning">Evidence Access</span>
+                                    {% elif log.action == 'evidence_integrity_check' %}
+                                        <span class="badge badge-info">Integrity Check</span>
+                                    {% elif log.action == 'unauthorized_evidence_access' %}
+                                        <span class="badge badge-danger">Unauthorized Access</span>
+                                    {% elif log.action == 'evidence_integrity_compromised' %}
+                                        <span class="badge badge-danger">Integrity Compromised</span>
+                                    {% elif log.action == 'suspicious_activity' %}
+                                        <span class="badge badge-danger">Suspicious Activity</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ log.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="max-width: 500px; white-space: normal; word-wrap: break-word;">
+                                    {{ log.details or 'N/A' }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <h5 class="text-muted">No audit logs found</h5>
+                    <p class="text-muted">Logs will appear here as users interact with the system.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- User Audit Tab -->
+            <div class="tab-pane fade" id="user" role="tabpanel">
+                {% if user_logs %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Timestamp (UTC)</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in user_logs %}
+                            <tr>
+                                <td><small>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                <td>
+                                    {% if log.user %}
+                                        <strong>{{ log.user.username }}</strong>
+                                        <br><small class="text-muted">{{ log.user.role|capitalize }}</small>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.action == 'login_success' %}
+                                        <span class="badge badge-success">Login Success</span>
+                                    {% elif log.action == 'login_failure' %}
+                                        <span class="badge badge-danger">Login Failure</span>
+                                    {% elif log.action == 'logout' %}
+                                        <span class="badge badge-secondary">Logout</span>
+                                    {% elif log.action in ['user_created', 'initial_admin_created'] %}
+                                        <span class="badge badge-info">User Created</span>
+                                    {% elif log.action == 'suspicious_activity' %}
+                                        <span class="badge badge-danger">Suspicious Activity</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ log.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="max-width: 500px; white-space: normal; word-wrap: break-word;">
+                                    {{ log.details or 'N/A' }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <h5 class="text-muted">No user audit logs found</h5>
+                    <p class="text-muted">User-related actions (login, logout, user creation) will appear here.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Evidence Audit Tab -->
+            <div class="tab-pane fade" id="evidence" role="tabpanel">
+                {% if evidence_logs %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Timestamp (UTC)</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in evidence_logs %}
+                            <tr>
+                                <td><small>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                                <td>
+                                    {% if log.user %}
+                                        <strong>{{ log.user.username }}</strong>
+                                        <br><small class="text-muted">{{ log.user.role|capitalize }}</small>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.action == 'evidence_upload' %}
+                                        <span class="badge badge-success">Evidence Upload</span>
+                                    {% elif log.action == 'evidence_access' %}
+                                        <span class="badge badge-warning">Evidence Access</span>
+                                    {% elif log.action == 'evidence_integrity_check' %}
+                                        <span class="badge badge-info">Integrity Check</span>
+                                    {% elif log.action == 'unauthorized_evidence_access' %}
+                                        <span class="badge badge-danger">Unauthorized Access</span>
+                                    {% elif log.action == 'evidence_integrity_compromised' %}
+                                        <span class="badge badge-danger">Integrity Compromised</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ log.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="max-width: 500px; white-space: normal; word-wrap: break-word;">
+                                    {{ log.details or 'N/A' }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <h5 class="text-muted">No evidence audit logs found</h5>
+                    <p class="text-muted">Evidence-related actions (uploads, access) will appear here.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
